@@ -148,6 +148,7 @@ function PinLock({ onUnlock }) {
         )}
       </div>
     </div>
+  </div>
   );
 }
 
@@ -920,4 +921,4 @@ function DiaryPage({ name }) {
             <div style={{textAlign:"center",padding:"40px 20px"}}>
               <div style={{fontSize:48,marginBottom:12}}>📔</div>
               <div className="t-cursive" style={{fontSize:20,color:"#c09090"}}>Abhi koi entry nahi, {name}</div>
-              <div className="t-mutedD
+              <di
