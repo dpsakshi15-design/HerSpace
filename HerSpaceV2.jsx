@@ -148,7 +148,6 @@ function PinLock({ onUnlock }) {
         )}
       </div>
     </div>
-  </div>
   );
 }
 
@@ -700,7 +699,7 @@ function StreakPage({ name }) {
   });
 
   return (
-    <div className="page">
+    <div>
       <div className="t-title mb8" style={{fontSize:24}}>Your Streak 🔥</div>
       <div className="t-sub mb20">Consistency is your superpower</div>
 
@@ -764,7 +763,7 @@ function WallPage({ name }) {
   const add=()=>{ if(!text.trim())return; setQuotes(q=>[...q,{id:Date.now(),text:text.trim(),type:"personal"}]); setText(""); };
   const del=(id)=>setQuotes(q=>q.filter(x=>x.id!==id));
   return (
-    <div className="page">
+    <div>
       <div className="t-title mb8" style={{fontSize:24}}>Motivation Wall 🌸</div>
       <div className="t-sub mb20">Your collection of strength</div>
       <div className="card mb20">
@@ -919,6 +918,523 @@ function DiaryPage({ name }) {
         <div>
           {histDays.length===0?(
             <div style={{textAlign:"center",padding:"40px 20px"}}>
-              <div style={{fontSize:48,marginBottom:12}}>📔</div>
+              <div style={{fontSize:48,marginBottom:12}}>{"📔"}</div>
               <div className="t-cursive" style={{fontSize:20,color:"#c09090"}}>Abhi koi entry nahi, {name}</div>
-              <di
+              <div className="t-muted" style={{marginTop:6}}>{"Aaj chi pehili entry lihun tak! 🌸"}</div>
+            </div>
+          ):(
+            <div className="col gap12">
+              {histDays.map((day,di)=>{
+                const e=entries[day];
+                const mins=e.chapters.reduce((a,c)=>a+c.time,0);
+                const hrs=(mins/60).toFixed(1);
+                const isT=day===tk;
+                return (
+                  <div key={day} style={{background:isT?"linear-gradient(135deg,#fff0f6,#fce4ec)":"rgba(255,255,255,.85)",borderRadius:20,padding:16,border:isT?"1.5px solid rgba(255,133,161,.4)":"1px solid rgba(255,200,215,.3)",animation:`pageIn ${.08*di}s ease`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                      <div>
+                        <div style={{fontWeight:800,color:isT?"#c03060":"#555",fontSize:15}}>{isT?"✨ ":""}{fmtDate(day)}</div>
+                        <div style={{fontSize:10,color:"#ccc",marginTop:1}}>{new Date(day).toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div>
+                      </div>
+                      <div style={{display:"flex",gap:6}}>
+                        <div style={{textAlign:"center",background:"rgba(255,107,157,.1)",borderRadius:12,padding:"5px 9px"}}>
+                          <div style={{fontWeight:800,fontSize:16,color:"#ff6090"}}>{e.chapters.length}</div>
+                          <div style={{fontSize:9,color:"#c08090"}}>ch</div>
+                        </div>
+                        <div style={{textAlign:"center",background:"rgba(128,96,192,.1)",borderRadius:12,padding:"5px 9px"}}>
+                          <div style={{fontWeight:800,fontSize:16,color:"#8060c0"}}>{hrs}h</div>
+                          <div style={{fontSize:9,color:"#8060a0"}}>study</div>
+                        </div>
+                      </div>
+                    </div>
+                    {e.chapters.length>0&&(
+                      <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:e.note?10:0}}>
+                        {e.chapters.map(ch=>(
+                          <span key={ch.id} style={{background:"rgba(255,182,200,.18)",color:"#c06080",borderRadius:50,padding:"3px 9px",fontSize:11,fontWeight:700}}>{ch.subject}: {ch.name}</span>
+                        ))}
+                      </div>
+                    )}
+                    {e.note&&(
+                      <div style={{borderTop:"1px solid rgba(255,182,200,.2)",paddingTop:8}}>
+                        <div className="t-cursive" style={{fontSize:14,color:"#888",lineHeight:1.5}}>💭 {e.note}</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Period Tracker ── */
+function PeriodTracker({ name }) {
+  const [data,setData] = useLS("hs_period",{startDate:"",cycleLen:28,periodDays:5});
+  const [form,setForm] = useState(data);
+  const [saved,setSaved]= useState(false);
+
+  const save=()=>{ setData(form); setSaved(true); setTimeout(()=>setSaved(false),2000); };
+
+  // Compute info
+  let nextDate=null, dayOfCycle=null, daysUntil=null, phase=null;
+  if(data.startDate){
+    const start=new Date(data.startDate);
+    const today=new Date(); today.setHours(0,0,0,0);
+    const diff=Math.floor((today-start)/dayMs);
+    dayOfCycle=(diff%data.cycleLen)+1;
+    if(dayOfCycle<1)dayOfCycle=data.cycleLen+dayOfCycle;
+    phase=getPhase(dayOfCycle,data.periodDays);
+    const daysLeft=data.cycleLen-dayOfCycle;
+    const nxt=new Date(today); nxt.setDate(nxt.getDate()+daysLeft);
+    nextDate=nxt; daysUntil=daysLeft;
+    if(daysUntil===0) daysUntil="Today";
+    else if(daysUntil===1) daysUntil="Tomorrow";
+    else daysUntil=`In ${daysLeft} days`;
+  }
+
+  // Calendar — show 28-day cycle view
+  const calDays = data.startDate ? Array.from({length:data.cycleLen},(_,i)=>{
+    const d=new Date(data.startDate); d.setDate(d.getDate()+i);
+    const dnum=i+1;
+    const ph=getPhase(dnum,data.periodDays);
+    return { d, dnum, ph, isToday: d.toISOString().slice(0,10)===todayStr() };
+  }) : [];
+
+  const phaseColors = { period:["#ffe0e8","#c03060"], follicular:["#e0ffe8","#206040"], ovulation:["#fff8e0","#a07000"], luteal:["#f0e8ff","#6030a0"] };
+
+  return (
+    <div>
+      {/* Phase Banner */}
+      {phase&&(
+        <div style={{background:`linear-gradient(135deg,${phaseColors[phase.id][0]},white)`,borderRadius:22,padding:20,marginBottom:16,border:`1px solid ${phaseColors[phase.id][1]}25`,animation:"pageIn .3s ease"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+            <div style={{fontSize:40}} className="pulse">{phase.emoji}</div>
+            <div>
+              <div className="sec-label" style={{color:phaseColors[phase.id][1]}}>Current Phase</div>
+              <div className="t-display" style={{fontSize:22,color:phaseColors[phase.id][1]}}>{phase.label} Phase</div>
+              <div style={{fontSize:12,color:"#aaa"}}>Day {dayOfCycle} of cycle</div>
+            </div>
+          </div>
+          <div style={{background:"rgba(255,255,255,.7)",borderRadius:14,padding:"10px 14px",borderLeft:`3px solid ${phaseColors[phase.id][1]}`}}>
+            <div className="t-cursive" style={{fontSize:16,color:"#555",lineHeight:1.5}}>
+              💕 {PHASE_MSGS[phase.id](name)}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Next Period */}
+      {nextDate&&(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          <div className="card-rose" style={{textAlign:"center"}}>
+            <div className="t-display" style={{fontSize:13,color:"#c03060",marginBottom:4}}>Next Period</div>
+            <div style={{fontWeight:800,fontSize:14,color:"#555"}}>{nextDate.toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div>
+            <div style={{fontSize:11,color:"#ff85a1",fontWeight:700,marginTop:2}}>{daysUntil}</div>
+          </div>
+          <div className="card-lavender" style={{textAlign:"center"}}>
+            <div className="t-display" style={{fontSize:13,color:"#6030a0",marginBottom:4}}>Cycle Day</div>
+            <div style={{fontWeight:800,fontSize:28,color:"#8060c0",lineHeight:1}}>{dayOfCycle}</div>
+            <div style={{fontSize:11,color:"#a080d0",fontWeight:700}}>of {data.cycleLen}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Cycle mini calendar */}
+      {calDays.length>0&&(
+        <div className="card mb16">
+          <div style={{fontWeight:800,color:"#555",marginBottom:12,fontSize:14}}>Cycle Calendar 🗓️</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+            {calDays.map((cd,i)=>{
+              const [bg,txt]=phaseColors[cd.ph.id];
+              return (
+                <div key={i} className="cal-day" style={{background:bg,color:txt,fontSize:11,outline:cd.isToday?"2.5px solid #ff85a1":"none",outlineOffset:1,fontWeight:cd.isToday?900:700,width:33,height:33,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {cd.d.getDate()}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:12}}>
+            {[["period","🩸","Period"],["follicular","🌱","Follicular"],["ovulation","🌼","Ovulation"],["luteal","🌙","Luteal"]].map(([id,e,l])=>(
+              <div key={id} style={{display:"flex",alignItems:"center",gap:4,fontSize:10,fontWeight:700}}>
+                <div style={{width:10,height:10,borderRadius:50,background:phaseColors[id][0],border:`1px solid ${phaseColors[id][1]}40`}}/>
+                <span style={{color:"#888"}}>{e} {l}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Settings Form */}
+      <div className="card">
+        <div style={{fontWeight:800,color:"#555",marginBottom:14}}>⚙️ Cycle Settings</div>
+        <div className="mb12">
+          <div className="sec-label">Last Period Start Date</div>
+          <input type="date" className="inp" value={form.startDate} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))} max={todayStr()}/>
+        </div>
+        <div className="mb12">
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <div className="sec-label">Cycle Length</div>
+            <div style={{fontSize:13,fontWeight:800,color:"#ff85a1"}}>{form.cycleLen} days</div>
+          </div>
+          <input type="range" min={21} max={35} value={form.cycleLen} onChange={e=>setForm(f=>({...f,cycleLen:+e.target.value}))} style={{width:"100%"}}/>
+        </div>
+        <div className="mb16">
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <div className="sec-label">Period Duration</div>
+            <div style={{fontSize:13,fontWeight:800,color:"#ff85a1"}}>{form.periodDays} days</div>
+          </div>
+          <input type="range" min={2} max={8} value={form.periodDays} onChange={e=>setForm(f=>({...f,periodDays:+e.target.value}))} style={{width:"100%"}}/>
+        </div>
+        <button className="btn-pri" onClick={save} style={{width:"100%"}}>{saved?"✅ Saved!":"💾 Save Settings"}</button>
+        <div style={{marginTop:10,fontSize:11,color:"#ccc",textAlign:"center"}}>🔒 Stored privately on your device only</div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Exercise Tracker ── */
+function ExerciseTracker({ name }) {
+  const tk = todayStr();
+  const [exData,setExData] = useLS("hs_exercise",{});
+  const [selType,setSelType]  = useState("walk");
+  const [duration,setDuration]= useState(30);
+  const [customName,setCustomName]= useState("");
+  const [saved,setSaved]      = useState(false);
+
+  const todayLogs = exData[tk]||[];
+  const totalMin  = todayLogs.reduce((a,e)=>a+e.dur,0);
+
+  // Streak for exercise
+  const last7=Array.from({length:7},(_,i)=>{
+    const d=new Date(Date.now()-(6-i)*dayMs).toISOString().slice(0,10);
+    return {d, done:(exData[d]||[]).length>0, isT:d===tk};
+  });
+  const streak=last7.filter(x=>x.done).length;
+
+  const addEx=(status)=>{
+    const type=EX_TYPES.find(e=>e.id===selType)||EX_TYPES[0];
+    const label=selType==="custom"&&customName.trim()?customName.trim():type.label;
+    const entry={id:Date.now(),type:selType,label,emoji:type.emoji,dur:duration,status};
+    setExData(d=>({...d,[tk]:[...(d[tk]||[]),entry]}));
+    setSaved(true); setTimeout(()=>setSaved(false),2000);
+  };
+  const delEx=(id)=>setExData(d=>({...d,[tk]:(d[tk]||[]).filter(e=>e.id!==id)}));
+
+  const doneTodayCount = todayLogs.filter(e=>e.status==="done").length;
+  const skippedCount   = todayLogs.filter(e=>e.status==="skip").length;
+
+  return (
+    <div>
+      {/* Stats */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
+        {[
+          {bg:"linear-gradient(135deg,#e8fff0,#d0f8e0)",clr:"#2a7a50",val:doneTodayCount,lbl:"Done ✅"},
+          {bg:"linear-gradient(135deg,#fff0f6,#fce4ec)",clr:"#c03060",val:totalMin+"m",lbl:"Active ⏱️"},
+          {bg:"linear-gradient(135deg,#f0f0ff,#e8e0ff)",clr:"#5030a0",val:streak,lbl:"Streak 🔥"},
+        ].map((s,i)=>(
+          <div key={i} style={{background:s.bg,borderRadius:16,padding:"12px 0",textAlign:"center",border:"1px solid rgba(0,0,0,.04)"}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:s.clr,lineHeight:1}}>{s.val}</div>
+            <div style={{fontSize:10,color:"#aaa",fontWeight:700,marginTop:3}}>{s.lbl}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Motivational message */}
+      {doneTodayCount>0&&(
+        <div className="card-mint mb16" style={{animation:"pageIn .3s ease"}}>
+          <div className="t-cursive" style={{fontSize:16,color:"#1a6a38",lineHeight:1.5}}>
+            💪 Great job {name}! Consistency is power! Tula IAS officer banaychey, fit body pan lagel 🌿
+          </div>
+        </div>
+      )}
+      {skippedCount>0&&doneTodayCount===0&&(
+        <div className="card-gold mb16" style={{animation:"pageIn .3s ease"}}>
+          <div className="t-cursive" style={{fontSize:16,color:"#b07020",lineHeight:1.5}}>
+            😊 Chalta hai {name}, udya double energy 🔥 Kal zaroor!
+          </div>
+        </div>
+      )}
+
+      {/* Add Exercise */}
+      <div className="card mb16">
+        <div style={{fontWeight:800,color:"#555",marginBottom:14}}>+ Exercise Add Kar 🏋️</div>
+
+        <div className="mb12">
+          <div className="sec-label">Exercise Type</div>
+          <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+            {EX_TYPES.map(e=>(
+              <button key={e.id} className={`ex-chip${selType===e.id?" on":""}`} onClick={()=>setSelType(e.id)} style={{minWidth:60,flex:"0 0 auto"}}>
+                <span style={{fontSize:22}}>{e.emoji}</span>
+                <span>{e.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {selType==="custom"&&(
+          <div className="mb12">
+            <div className="sec-label">Exercise Name</div>
+            <input className="inp" value={customName} onChange={e=>setCustomName(e.target.value)} placeholder="e.g. Swimming, Cycling..."/>
+          </div>
+        )}
+
+        <div className="mb16">
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <div className="sec-label">Duration</div>
+            <div style={{fontSize:13,fontWeight:800,color:"#7ac89a"}}>{duration} min</div>
+          </div>
+          <input type="range" min={5} max={120} step={5} value={duration} onChange={e=>setDuration(+e.target.value)} style={{width:"100%",accentColor:"#7ac89a"}}/>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#ccc",marginTop:3}}>
+            <span>5m</span><span>30m</span><span>60m</span><span>2hr</span>
+          </div>
+        </div>
+
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={()=>addEx("done")} style={{flex:1,padding:"13px 0",borderRadius:16,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#c8f0d8,#a0e8bc)",color:"#1a6a38",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,boxShadow:"0 4px 12px rgba(80,200,120,.2)"}}>
+            ✅ Done!
+          </button>
+          <button onClick={()=>addEx("skip")} style={{flex:1,padding:"13px 0",borderRadius:16,border:"none",cursor:"pointer",background:"rgba(240,240,240,.7)",color:"#bbb",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14}}>
+            ⏭️ Skipped
+          </button>
+        </div>
+        {saved&&<div style={{textAlign:"center",marginTop:8,fontSize:13,color:"#7ac89a",fontWeight:700}}>✅ Logged!</div>}
+      </div>
+
+      {/* Today's Logs */}
+      {todayLogs.length>0&&(
+        <div className="mb16">
+          <div style={{fontWeight:800,color:"#555",marginBottom:10}}>Aaj chi Log 📋</div>
+          <div className="col gap8">
+            {todayLogs.map(e=>(
+              <div key={e.id} style={{background:e.status==="done"?"linear-gradient(135deg,#f0fff6,#e4f8ec)":"rgba(250,250,250,.8)",borderRadius:16,padding:"11px 14px",display:"flex",alignItems:"center",gap:12,border:e.status==="done"?"1px solid rgba(80,200,120,.2)":"1px solid rgba(220,220,220,.4)",animation:"pageIn .3s ease"}}>
+                <div style={{fontSize:24}}>{e.emoji}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:800,color:"#444",fontSize:14}}>{e.label}</div>
+                  <div style={{fontSize:11,color:e.status==="done"?"#3a8a5a":"#bbb",fontWeight:700}}>
+                    {e.status==="done"?"✅ Done":"⏭️ Skipped"} · {e.dur} min
+                  </div>
+                </div>
+                <button onClick={()=>delEx(e.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#ddd",fontSize:14}}>✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Weekly View */}
+      <div className="card">
+        <div style={{fontWeight:800,color:"#555",marginBottom:12}}>This Week 📅</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
+          {last7.map((d,i)=>(
+            <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:d.done?"linear-gradient(135deg,#7ac89a,#4db87a)":"rgba(220,220,220,.35)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:d.done?"#fff":"#ccc",outline:d.isT?"2.5px solid #7ac89a":"none",outlineOffset:2,fontWeight:800,boxShadow:d.done?"0 2px 8px rgba(80,200,120,.25)":"none",transition:"all .2s"}}>
+                {d.done?"✓":""}
+              </div>
+              <div style={{fontSize:9,color:"#ccc",fontWeight:700}}>
+                {["Su","Mo","Tu","We","Th","Fr","Sa"][new Date(d.d).getDay()]}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Health Page (Period + Exercise tabs) ── */
+function HealthPage({ name }) {
+  const [tab,setTab] = useState("period");
+  return (
+    <div className="page">
+      <div className="t-title mb8" style={{fontSize:24}}>Health & Body 🌿</div>
+      <div className="t-sub mb20">Tuzhi turba, {name} 💕</div>
+
+      <div style={{display:"flex",background:"rgba(255,255,255,.7)",borderRadius:50,padding:4,marginBottom:20,border:"1px solid rgba(255,182,200,.3)"}}>
+        {[["period","🩸 Period"],["exercise","🏋️ Exercise"]].map(([id,lbl])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"9px 0",borderRadius:50,border:"none",cursor:"pointer",background:tab===id?"linear-gradient(135deg,#ff7aaa,#ff5090)":"transparent",color:tab===id?"#fff":"#bbb",fontFamily:"'Nunito',sans-serif",fontWeight:800,fontSize:14,transition:"all .3s"}}>{lbl}</button>
+        ))}
+      </div>
+
+      {tab==="period"&&<PeriodTracker name={name}/>}
+      {tab==="exercise"&&<ExerciseTracker name={name}/>}
+    </div>
+  );
+}
+
+/* ── UPSC Mode ── */
+function UPSCPage({ name }) {
+  const [active,setActive] = useState(null);
+  const dayGoal = DAILY_GOALS[new Date().getDay()%DAILY_GOALS.length];
+  return (
+    <div>
+      <div className="t-title mb8" style={{fontSize:24}}>UPSC Mode 🚀</div>
+      <div className="t-sub mb20">Topper mindset, {name}!</div>
+
+      <div className="card-dark mb20">
+        <div className="sec-label" style={{color:"#ff85a1",marginBottom:8}}>Today's Target</div>
+        <div className="t-cursive" style={{fontSize:18,color:"#fff",lineHeight:1.5}}>📋 {dayGoal}</div>
+        <div style={{marginTop:12}}>
+          <span style={{background:"rgba(255,133,161,.2)",color:"#ff85a1",borderRadius:50,padding:"4px 12px",fontSize:11,fontWeight:700}}>🔥 Daily Goal</span>
+        </div>
+      </div>
+
+      <div className="mb20">
+        <div style={{fontWeight:800,color:"#555",marginBottom:12}}>Subject Motivation 📚</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {SUBJECTS_UPSC.map((s,i)=>(
+            <button key={i} onClick={()=>setActive(active===i?null:i)} style={{background:`linear-gradient(135deg,${s.clr[0]},white)`,border:active===i?`2px solid ${s.clr[1]}`:("1px solid rgba(0,0,0,.05)"),borderRadius:16,padding:"14px 12px",cursor:"pointer",textAlign:"left",transition:"all .3s",transform:active===i?"scale(1.03)":"scale(1)"}}>
+              <div style={{fontSize:22,marginBottom:4}}>{s.emoji}</div>
+              <div style={{fontWeight:800,color:s.clr[1],fontSize:14}}>{s.name}</div>
+              {active===i&&<div style={{fontSize:12,color:"#666",marginTop:6,lineHeight:1.4,animation:"pageIn .2s ease"}}>{s.tip}</div>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div style={{fontWeight:800,color:"#555",marginBottom:12}}>Topper Wisdom 🌟</div>
+        {UPSC_QUOTES.map((q,i)=>(
+          <div key={i} style={{background:"rgba(255,255,255,.85)",borderRadius:16,padding:"14px 16px",marginBottom:10,borderLeft:"3px solid #ffb3c6"}}>
+            <div className="t-cursive" style={{fontSize:16,color:"#555",marginBottom:5}}>"{q.quote}"</div>
+            <div style={{fontSize:12,color:"#ff85a1",fontWeight:800}}>— {q.name}, IAS Topper</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Secret Love Modal ── */
+function LoveModal({ name, onClose }) {
+  const [open,setOpen] = useState(false);
+  const [i,setI]       = useState(0);
+  return (
+    <div className="love-overlay" onClick={onClose}>
+      <div className="love-box" onClick={e=>e.stopPropagation()}>
+        {!open?(
+          <>
+            <div className="float" style={{fontSize:56,marginBottom:14}}>💌</div>
+            <div className="t-display" style={{fontSize:22,marginBottom:6}}>A secret note for you</div>
+            <div className="t-muted mb20">Only for you, {name} ❤️</div>
+            <button className="btn-pri" onClick={()=>setOpen(true)} style={{width:"100%"}}>Open with Love 💕</button>
+          </>
+        ):(
+          <>
+            <div className="sparkle" style={{fontSize:36,marginBottom:14}}>💕</div>
+            <div className="t-cursive" style={{fontSize:18,color:"#7a2050",lineHeight:1.7,marginBottom:20,minHeight:100}}>
+              {LOVE_MSGS[i]}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn-ghost" style={{flex:1}} onClick={()=>setI(n=>(n+1)%LOVE_MSGS.length)}>Next 💌</button>
+              <button className="btn-pri"   style={{flex:1}} onClick={onClose}>Close 🌸</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ROOT APP
+═══════════════════════════════════════════════════════════════════════ */
+function HerSpace() {
+  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem("hs_unlocked") === "1");
+  const handleUnlock = () => { sessionStorage.setItem("hs_unlocked","1"); setUnlocked(true); };
+  const [name]          = useState(()=>rand(NAMES));
+  const [tab,setTab]    = useState("home");
+  const [love,setLove]  = useState(false);
+  const [taps,setTaps]  = useState(0);
+  const [lastOpen,setLastOpen] = useLS("hs_last",null);
+  const [reminder,setReminder] = useState(false);
+
+  useEffect(()=>{
+    const now=Date.now();
+    if(lastOpen && now-lastOpen > 2*dayMs) setReminder(true);
+    setLastOpen(now);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+
+  const logoTap=()=>setTaps(c=>{ if(c+1>=5){setLove(true);return 0;} return c+1; });
+
+  const TABS=[
+    {id:"home",   icon:"🏠", label:"Home"},
+    {id:"diary",  icon:"📔", label:"Diary"},
+    {id:"timer",  icon:"⏱️", label:"Timer"},
+    {id:"health", icon:"🌿", label:"Health"},
+    {id:"more",   icon:"✨",  label:"More"},
+  ];
+
+  if (!unlocked) return <PinLock onUnlock={handleUnlock} />;
+  return (
+    <div className="app">
+      {love&&<LoveModal name={name} onClose={()=>setLove(false)}/>}
+
+      {reminder&&(
+        <div style={{background:"linear-gradient(135deg,#fff8e8,#fff0f6)",padding:"11px 18px",borderBottom:"1px solid rgba(255,200,150,.3)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div className="t-cursive" style={{fontSize:14,color:"#c07020"}}>Hey Bachaa, tu kuthe aahes? Study sodli ka? 😅</div>
+          <button onClick={()=>setReminder(false)} style={{background:"none",border:"none",cursor:"pointer",color:"#ccc",fontSize:18}}>✕</button>
+        </div>
+      )}
+
+      {tab==="home"&&(
+        <>
+          <Header name={name}/>
+          <div className="page" style={{paddingTop:18}}>
+            <DailyStrip name={name}/>
+            <MoodEngine name={name}/>
+            <FutureMsg  name={name}/>
+            <div onClick={logoTap} style={{textAlign:"center",padding:"6px 0",cursor:"pointer",userSelect:"none"}}>
+              <div className="t-cursive" style={{fontSize:12,color:"rgba(200,150,170,.45)"}}>💖 HerSpace · Made with love</div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {tab==="diary" &&<DiaryPage  name={name}/>}
+      {tab==="timer" &&<Pomodoro   name={name}/>}
+      {tab==="health"&&<HealthPage name={name}/>}
+
+      {tab==="more"&&(
+        <div className="page">
+          <div className="t-title mb8" style={{fontSize:24}}>More ✨</div>
+          <div className="t-sub mb20">All your tools, {name}</div>
+
+          {/* Streak quick widget */}
+          <StreakPage name={name}/>
+
+          <div style={{height:16}}/>
+
+          {/* Wall */}
+          <WallPage name={name}/>
+
+          <div style={{height:16}}/>
+
+          {/* UPSC */}
+          <UPSCPage name={name}/>
+
+          {/* Secret love trigger */}
+          <div style={{textAlign:"center",paddingTop:20}}>
+            <button onClick={()=>setLove(true)} style={{background:"linear-gradient(135deg,#ffe0f0,#ffd0e8)",border:"1px solid rgba(255,180,210,.4)",borderRadius:50,padding:"10px 24px",cursor:"pointer",fontFamily:"'Dancing Script',cursive",fontSize:16,color:"#c03060"}}>
+              💌 Open Secret Note
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="tabbar">
+        {TABS.map(t=>(
+          <button key={t.id} className={`tab-btn${tab===t.id?" on":""}`} onClick={()=>setTab(t.id)}>
+            <span className="tab-icon">{t.icon}</span>
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+// PWA Mount
+window.App = HerSpace;

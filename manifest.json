@@ -1,0 +1,26 @@
+{
+  "name": "HerSpace — Your Safe Space",
+  "short_name": "HerSpace",
+  "description": "Your personal wellness & self-care companion",
+  "start_url": "/HerSpace/",
+  "scope": "/HerSpace/",
+  "display": "standalone",
+  "background_color": "#fdf0f5",
+  "theme_color": "#ff7aaa",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["health", "lifestyle", "productivity"]
+}
